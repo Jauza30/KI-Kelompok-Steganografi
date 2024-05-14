@@ -40,13 +40,48 @@ function hideMessage() {
         downloadLink.download = "steg_audio.wav";
         downloadLink.textContent = "Unduh Audio dengan Pesan Tersembunyi";
 
-        // Menambahkan link unduh ke dalam container dan menempatkannya di tengah
+        // Menambahkan link unduh ke dalam container
         const container = document.getElementById("downloadContainer");
         container.innerHTML = ""; // Membersihkan container sebelum menambahkan link baru
         container.appendChild(downloadLink);
+
+        // Menambahkan output angka biner yang ringkas
+        const binaryOutput = document.createElement("p");
+        const binaryPreviewLength = 64; // Panjang data biner yang akan ditampilkan di awal dan akhir
+        const binaryData = Array.from(audioData).map(byte => byte.toString(2).padStart(8, '0'));
+        const binaryPreview = binaryData.slice(0, binaryPreviewLength).join(' ') + ' ... ' + binaryData.slice(-binaryPreviewLength).join(' ');
+        binaryOutput.textContent = "Data Audio (Binary): " + binaryPreview;
+        container.appendChild(binaryOutput);
     };
 
     reader.readAsArrayBuffer(audioFile);
+}
+
+function binToText(bin) {
+    const text = [];
+    for (let i = 0; i < bin.length; i += 8) {
+        const byte = bin.substring(i, i + 8);
+        const charCode = parseInt(byte, 2);
+        text.push(String.fromCharCode(charCode));
+    }
+    return text.join("");
+}
+
+function hideMessageInAudio(audioData, messageBin, key) {
+    const messageLength = messageBin.length;
+
+    // Menyisipkan panjang pesan di awal audio
+    for (let i = 0; i < 32; i++) {
+        const bit = (messageLength >> i) & 1;
+        audioData[i] = (audioData[i] & ~1) | bit;
+    }
+
+    // Menyisipkan pesan
+    for (let i = 0; i < messageLength; i++) {
+        const byteIndex = i + 32;
+        const bit = messageBin[i];
+        audioData[byteIndex] = (audioData[byteIndex] & ~1) | bit;
+    }
 }
 
 function extractMessage() {
@@ -71,7 +106,7 @@ function extractMessage() {
         resultElement.textContent = "Pesan yang diekstrak: " + extractedText;
         resultElement.id = "extractedText";
 
-        // Menambahkan hasil ekstraksi ke dalam container dan menempatkannya di tengah
+        // Menambahkan hasil ekstraksi ke dalam container
         const container = document.getElementById("extractionContainer");
         container.innerHTML = ""; // Membersihkan container sebelum menambahkan hasil baru
         container.appendChild(resultElement);
@@ -80,41 +115,10 @@ function extractMessage() {
     reader.readAsArrayBuffer(audioFile);
 }
 
-function binToText(bin) {
-    const text = [];
-    for (let i = 0; i < bin.length; i += 8) {
-        const byte = bin.substring(i, i + 8);
-        const charCode = parseInt(byte, 2);
-        text.push(String.fromCharCode(charCode));
-    }
-    return text.join("");
-}
-
-function hideMessageInAudio(audioData, messageBin, key) {
-    const messageLength = messageBin.length;
-    const maxAudioLength = audioData.length;
-
-    for (let i = 0; i < 32; i++) {
-        const bit = (messageLength >> i) & 1;
-        audioData[i] = (audioData[i] & ~1) | bit;
-    }
-
-    for (let i = 0; i < messageLength; i++) {
-        const byteIndex = i + 32;
-        const bit = messageBin[i];
-        const audioByte = audioData[byteIndex];
-
-        if (bit === "1") {
-            audioData[byteIndex] |= 1; // Set bit terendah menjadi 1
-        } else {
-            audioData[byteIndex] &= ~1; // Set bit terendah menjadi 0
-        }
-    }
-}
-
 function extractMessageFromAudio(audioData, key) {
     let messageLength = 0;
 
+    // Mengambil panjang pesan dari 32 bit pertama
     for (let i = 0; i < 32; i++) {
         const bit = audioData[i] & 1;
         messageLength |= bit << i;
