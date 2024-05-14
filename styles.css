@@ -65,6 +65,7 @@ input[type="file"] {
     cursor: pointer;
     border-radius: 20px;
     font-family: 'Comic Sans MS', cursive;
+    font-size: 16px;
 }
 
 .buttons button:hover {
